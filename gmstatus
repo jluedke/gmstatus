@@ -1,0 +1,143 @@
+#!/usr/bin/env python
+import optparse
+import socket
+import re
+import gevent
+from eventlet.green import socket
+
+class GearmanClusterStatus(object):
+    """collection of GearmanServerStatus"""
+    def __init__(self, servers, workers, options):
+        self.servers = servers
+        self.workers = workers
+        self.options = options
+        self.server_status = {}
+
+    def update(self):
+        for server in  self.servers:
+            (host, port) = server.split(':')
+            self.server_status[server] = GearmanServerStatus(host, int(port), options)
+
+    def __repr__(self):
+        result = ''
+        for server in self.servers:
+           result += 'host: %s\n' % server
+           result += str(self.server_status[server])
+        return result
+        
+class GearmanServerStatus(object):
+    def __init__(self, host, port=4730, options=None):
+       self.host = host
+       self.port = port
+       self.workers = list()
+       gevent.spawn(self.getstatus(host, port))
+       
+    def getstatus(self, host, port=4730):
+        """connects to and issues a stats command to gearmand"""
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((host, port))
+        fs = s.makefile('wb+')
+        fs.write('status\n');
+        fs.flush()
+
+        while 1:
+            line = fs.readline()
+            if line == '.\n':
+                break
+            status = GearmanWorkerStatus(line, options)
+            if options.workers:
+                if  status.worker in options.workers:
+                    self.workers.append(status)
+            else:
+                self.workers.append(status)
+        fs.close()
+        s.close()
+
+    def __repr__(self):
+       result = ''
+       for worker in self.workers:
+           result += '%s\n' % worker
+       return result
+
+class GearmanWorkerStatus(object):
+    """Status returned by gearmand"""
+
+    def __init__(self, status_line, options=None):
+        self.worker = ''
+        self.workers_running = 0
+        self.jobs_queued = 0
+        self.jobs_running = 0
+        self.process_status_line(status_line)
+
+    def process_status_line(self, status_line):
+        """parse gearman status line"""
+
+        result = re.match('^([a-z0-9A-Z_]+)\s+(\d+)\s+(\d+)\s+(\d+)', 
+            status_line
+        )
+        if (result.group):
+            self.worker = result.group(1)
+            self.jobs_queued = int(result.group(2))
+            self.jobs_running = int(result.group(3))
+            self.workers_running = int(result.group(4))
+        else:
+            raise GearmanWorkerStatusLineError(
+                "wtf bro bad status - '%s'" % status_line)
+
+    def __repr__(self):
+        return "\tq: %d\tr: %d\tw: %d\tworker: %s" % (
+            self.jobs_queued, 
+            self.jobs_running, 
+            self.workers_running,
+            self.worker 
+        )
+
+class GearmanWorkerStatusLineError(Exception):
+    pass
+
+class GearmanClusterWorkerStatus(GearmanWorkerStatus):
+    def __init__(self, worker):
+        self.worker = worker
+        self.jobs_queued = 0
+        self.jobs_running = 0
+        self.workers_running = 0
+        self.server_count = 0 # number of servers job is running on
+
+    def update(self, jobs_queued, jobs_running, workers_running):
+        self.jobs_queued += jobs_queued
+        self.jobs_running += jobs_running
+        self.workers_running += workers_running
+        self.server_count += 1
+
+    def __repr__(self):
+        return "s: %d\tq: %d\tr: %d\tw: %d\tworker: %s" % (
+            self.server_count, 
+            self.jobs_queued, 
+            self.jobs_running, 
+            self.workers_running,
+            self.worker)
+
+if __name__ == '__main__':
+    parser = optparse.OptionParser()
+    parser.add_option("-i", "--interval", action='store', default=[],
+        help="workers to display, can give multiple options")
+    parser.add_option("-w", "--workers", action='append', default=[],
+        help="workers to display, can give multiple options")
+    parser.add_option("-d", "--detailed", action="store_true", default=False,
+        help="display detailed results for each server")
+    (options, args) = parser.parse_args()
+
+    print options
+
+    # todo: servers = args or read from rc file
+    servers = args
+    workers = options.workers
+    if len(workers) == 0:
+        workers = None
+    cluster = GearmanClusterStatus(servers, workers, options)
+    while True:
+        cluster.update()
+        print cluster
+        if not options.interval:
+            break
+        time.sleep(options.interval)

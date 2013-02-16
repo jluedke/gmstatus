@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-import gevent
-from gevent import Greenlet
+import gevent.monkey
+gevent.monkey.patch_all()
 
 import optparse
 import re
@@ -16,7 +16,6 @@ class GearmanClusterStatus(object):
         self.server_status = {}
         for server in  self.servers:
             (host, port) = server.split(':')
-            print "server: %s" % server
             self.server_status[server] = GearmanServerStatus(host, int(port), options)
 
     def __repr__(self):
@@ -28,10 +27,10 @@ class GearmanClusterStatus(object):
         
 class GearmanServerStatus(object):
     def __init__(self, host, port=4730, options=None):
-       self.host = host
-       self.port = port
-       self.workers = list()
-       gevent.spawn(self.getstatus, host, port, options)
+        self.host = host
+        self.port = port
+        self.workers = list()
+        gevent.spawn(self.getstatus, host, port, options)
        
     def getstatus(self, host, port=4730, options=None):
         """connects to and issues a stats command to gearmand"""
@@ -56,16 +55,15 @@ class GearmanServerStatus(object):
             if not options.interval:
                 break
             time.sleep(options.interval)
-            print host
 
         fs.close()
         s.close()
 
     def __repr__(self):
-       result = ''
-       for worker in self.workers:
+        result = ''
+        for worker in self.workers:
            result += '%s\n' % worker
-       return result
+        return result
 
 class GearmanWorkerStatus(object):
     """Status returned by gearmand"""
@@ -148,7 +146,7 @@ if __name__ == '__main__':
         workers = None
     cluster = GearmanClusterStatus(servers, workers, options)
     while True:
+        time.sleep(options.interval)
         print cluster
         if not options.interval:
             break
-        time.sleep(options.interval)

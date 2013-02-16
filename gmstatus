@@ -3,6 +3,7 @@ import optparse
 import socket
 import re
 import gevent
+import time
 from eventlet.green import socket
 
 class GearmanClusterStatus(object):
@@ -12,10 +13,9 @@ class GearmanClusterStatus(object):
         self.workers = workers
         self.options = options
         self.server_status = {}
-
-    def update(self):
         for server in  self.servers:
             (host, port) = server.split(':')
+            print "server: %s" % server
             self.server_status[server] = GearmanServerStatus(host, int(port), options)
 
     def __repr__(self):
@@ -30,26 +30,33 @@ class GearmanServerStatus(object):
        self.host = host
        self.port = port
        self.workers = list()
-       gevent.spawn(self.getstatus(host, port))
+       gevent.spawn(self.getstatus(host, port, options))
        
-    def getstatus(self, host, port=4730):
+    def getstatus(self, host, port=4730, options=None):
         """connects to and issues a stats command to gearmand"""
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((host, port))
         fs = s.makefile('wb+')
-        fs.write('status\n');
-        fs.flush()
+        while True:
+            fs.write('status\n');
+            fs.flush()
 
-        while 1:
-            line = fs.readline()
-            if line == '.\n':
-                break
-            status = GearmanWorkerStatus(line, options)
-            if options.workers:
-                if  status.worker in options.workers:
+            while True:
+                line = fs.readline()
+                if line == '.\n':
+                    break
+                status = GearmanWorkerStatus(line, options)
+                if options.workers:
+                    if  status.worker in options.workers:
+                        self.workers.append(status)
+                else:
                     self.workers.append(status)
-            else:
-                self.workers.append(status)
+
+            if not options.interval:
+                break
+            gevent.sleep(options.interval)
+            print host
+
         fs.close()
         s.close()
 
@@ -119,12 +126,16 @@ class GearmanClusterWorkerStatus(GearmanWorkerStatus):
 
 if __name__ == '__main__':
     parser = optparse.OptionParser()
-    parser.add_option("-i", "--interval", action='store', default=[],
+
+    parser.add_option("-i", "--interval", metavar="NUMBER", type="int", 
         help="workers to display, can give multiple options")
+
     parser.add_option("-w", "--workers", action='append', default=[],
         help="workers to display, can give multiple options")
+
     parser.add_option("-d", "--detailed", action="store_true", default=False,
         help="display detailed results for each server")
+
     (options, args) = parser.parse_args()
 
     print options
@@ -136,8 +147,9 @@ if __name__ == '__main__':
         workers = None
     cluster = GearmanClusterStatus(servers, workers, options)
     while True:
-        cluster.update()
+        print "cluster?"
         print cluster
         if not options.interval:
             break
+
         time.sleep(options.interval)

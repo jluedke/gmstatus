@@ -1,10 +1,11 @@
 #!/usr/bin/env python
+import gevent.monkey
+gevent.monkey.patch_all()
+
 import optparse
-import socket
 import re
-import gevent
 import time
-from eventlet.green import socket
+import socket
 
 class GearmanClusterStatus(object):
     """collection of GearmanServerStatus"""

@@ -54,7 +54,7 @@ class GearmanServerStatus(object):
 
             if not options.interval:
                 break
-            gevent.sleep(options.interval)
+            time.sleep(options.interval)
             print host
 
         fs.close()

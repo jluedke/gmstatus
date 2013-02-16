@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-import gevent.monkey
-gevent.monkey.patch_all()
+import gevent
+from gevent import Greenlet
 
 import optparse
 import re
@@ -31,7 +31,7 @@ class GearmanServerStatus(object):
        self.host = host
        self.port = port
        self.workers = list()
-       gevent.spawn(self.getstatus(host, port, options))
+       gevent.spawn(self.getstatus, host, port, options)
        
     def getstatus(self, host, port=4730, options=None):
         """connects to and issues a stats command to gearmand"""
@@ -148,9 +148,7 @@ if __name__ == '__main__':
         workers = None
     cluster = GearmanClusterStatus(servers, workers, options)
     while True:
-        print "cluster?"
         print cluster
         if not options.interval:
             break
-
         time.sleep(options.interval)

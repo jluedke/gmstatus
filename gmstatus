@@ -40,7 +40,7 @@ class GearmanServerStatus(object):
         while True:
             fs.write('status\n');
             fs.flush()
-
+            workers = list()
             while True:
                 line = fs.readline()
                 if line == '.\n':
@@ -48,10 +48,11 @@ class GearmanServerStatus(object):
                 status = GearmanWorkerStatus(line, options)
                 if options.workers:
                     if  status.worker in options.workers:
-                        self.workers.append(status)
+                        workers.append(status)
                 else:
-                    self.workers.append(status)
+                    workers.append(status)
 
+            self.workers = workers;
             if not options.interval:
                 break
             time.sleep(options.interval)

@@ -46,13 +46,12 @@ class GearmanServerStatus(object):
                 if line == '.\n':
                     break
                 status = GearmanWorkerStatus(line, options)
-                if options.workers:
-                    if  status.worker in options.workers:
-                        workers.append(status)
-                else:
+
+                if not options.workers or status.worker in options.workers:  
                     workers.append(status)
 
             self.workers = workers;
+            print "WTF"
             if not options.interval:
                 break
             time.sleep(options.interval)
@@ -145,9 +144,12 @@ if __name__ == '__main__':
     workers = options.workers
     if len(workers) == 0:
         workers = None
+
     cluster = GearmanClusterStatus(servers, workers, options)
+
     while True:
-        time.sleep(options.interval)
+        if options.interval:
+            time.sleep(options.interval)
         print cluster
         if not options.interval:
             break

@@ -147,8 +147,6 @@ class GearmanClusterWorkerStatus(GearmanWorkerStatus):
             self.workers_running,
             self.name)
 
-
-
 if __name__ == '__main__':
     parser = optparse.OptionParser()
 

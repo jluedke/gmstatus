@@ -9,20 +9,47 @@ import socket
 
 class GearmanClusterStatus(object):
     """collection of GearmanServerStatus"""
-    def __init__(self, servers, workers, options):
+    def __init__(self, servers, workers=None, options=None):
         self.servers = servers
-        self.workers = workers
+        self.workers = workers # workers to watch
+        self.cluster_workers = {}
         self.options = options
         self.server_status = {}
-        for server in  self.servers:
+        for server in self.servers:
             (host, port) = server.split(':')
             self.server_status[server] = GearmanServerStatus(host, int(port), options)
 
+    def update(self):
+        self.cluster_workers.clear()
+        threads = []
+        for server, status in self.server_status.iteritems():
+            threads.append(gevent.spawn(status.update))
+        gevent.joinall(threads)
+
+        for server,status in self.server_status.iteritems():
+            for worker in status.workers:
+                if worker.name not in self.cluster_workers:
+                    self.cluster_workers[worker.name] = GearmanClusterWorkerStatus(worker.name)
+
+                # summ up the workers
+                self.cluster_workers[worker.name].jobs_queued += worker.jobs_queued
+                self.cluster_workers[worker.name].jobs_running += worker.jobs_running
+                self.cluster_workers[worker.name].workers_running += worker.workers_running
+                self.cluster_workers[worker.name].server_count += 1;
+
     def __repr__(self):
         result = ''
+        self.update()
         for server in self.servers:
-           result += 'host: %s\n' % server
-           result += str(self.server_status[server])
+            result += 'host: %s\tw: %s\n' % (server, len(self.server_status[server].workers))
+            if options.detailed:
+                result += str(self.server_status[server])
+
+        result += '-' * 72
+        result += "\n";
+        for worker in self.cluster_workers:
+            result += '%s\n' % self.cluster_workers[worker]
+
         return result
         
 class GearmanServerStatus(object):
@@ -30,31 +57,28 @@ class GearmanServerStatus(object):
         self.host = host
         self.port = port
         self.workers = list()
-        gevent.spawn(self.getstatus, host, port, options)
        
-    def getstatus(self, host, port=4730, options=None):
+    def update(self):
         """connects to and issues a stats command to gearmand"""
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((host, port))
+        s.connect((self.host, self.port))
         fs = s.makefile('wb+')
+
+        # remove any previous run data
+        del(self.workers[:])
+
         while True:
             fs.write('status\n');
             fs.flush()
-            workers = list()
-            while True:
-                line = fs.readline()
-                if line == '.\n':
-                    break
-                status = GearmanWorkerStatus(line, options)
 
-                if not options.workers or status.worker in options.workers:  
-                    workers.append(status)
-
-            self.workers = workers;
-            print "WTF"
-            if not options.interval:
+            line = fs.readline()
+            if line == '.\n':
                 break
-            time.sleep(options.interval)
+
+            status = GearmanWorkerStatus(line, options)
+
+            if not options.workers or status.name in options.workers:  
+                self.workers.append(status)
 
         fs.close()
         s.close()
@@ -69,7 +93,7 @@ class GearmanWorkerStatus(object):
     """Status returned by gearmand"""
 
     def __init__(self, status_line, options=None):
-        self.worker = ''
+        self.name = ''
         self.workers_running = 0
         self.jobs_queued = 0
         self.jobs_running = 0
@@ -82,7 +106,7 @@ class GearmanWorkerStatus(object):
             status_line
         )
         if (result.group):
-            self.worker = result.group(1)
+            self.name = result.group(1)
             self.jobs_queued = int(result.group(2))
             self.jobs_running = int(result.group(3))
             self.workers_running = int(result.group(4))
@@ -95,7 +119,7 @@ class GearmanWorkerStatus(object):
             self.jobs_queued, 
             self.jobs_running, 
             self.workers_running,
-            self.worker 
+            self.name 
         )
 
 class GearmanWorkerStatusLineError(Exception):
@@ -103,7 +127,7 @@ class GearmanWorkerStatusLineError(Exception):
 
 class GearmanClusterWorkerStatus(GearmanWorkerStatus):
     def __init__(self, worker):
-        self.worker = worker
+        self.name = worker
         self.jobs_queued = 0
         self.jobs_running = 0
         self.workers_running = 0
@@ -121,7 +145,9 @@ class GearmanClusterWorkerStatus(GearmanWorkerStatus):
             self.jobs_queued, 
             self.jobs_running, 
             self.workers_running,
-            self.worker)
+            self.name)
+
+
 
 if __name__ == '__main__':
     parser = optparse.OptionParser()

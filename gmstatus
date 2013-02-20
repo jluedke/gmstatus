@@ -2,6 +2,7 @@
 import gevent.monkey
 gevent.monkey.patch_all()
 
+import curses
 import optparse
 import re
 import time
@@ -16,7 +17,7 @@ class GearmanClusterStatus(object):
         self.options = options
         self.server_status = {}
         for server in self.servers:
-            (host, port) = server.split(':')
+            host, port = (server.split(':') + [4730])[:2]
             self.server_status[server] = GearmanServerStatus(host, int(port), options)
 
     def update(self):
@@ -161,8 +162,6 @@ if __name__ == '__main__':
 
     (options, args) = parser.parse_args()
 
-    print options
-
     # todo: servers = args or read from rc file
     servers = args
     workers = options.workers
@@ -172,8 +171,8 @@ if __name__ == '__main__':
     cluster = GearmanClusterStatus(servers, workers, options)
 
     while True:
+        print cluster
         if options.interval:
             time.sleep(options.interval)
-        print cluster
         if not options.interval:
             break

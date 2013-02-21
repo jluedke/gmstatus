@@ -2,6 +2,7 @@
 import gevent.monkey
 gevent.monkey.patch_all()
 
+from os import path, access, R_OK
 import curses
 import optparse
 import re
@@ -37,16 +38,17 @@ class GearmanClusterStatus(object):
                 self.cluster_workers[worker.name].jobs_running += worker.jobs_running
                 self.cluster_workers[worker.name].workers_running += worker.workers_running
                 self.cluster_workers[worker.name].server_count += 1;
+                self.cluster_workers[worker.name].server_count += 1;
 
     def __repr__(self):
         result = ''
         self.update()
-        for server in self.servers:
-            result += 'host: %s\tw: %s\n' % (server, len(self.server_status[server].workers))
-            if options.detailed:
+        if options.detailed:
+            for server in self.servers:
+                result += 'host: %s\tw: %s\n' % (server, len(self.server_status[server].workers))
                 result += str(self.server_status[server])
+            result += '-' * 72
 
-        result += '-' * 72
         result += "\n";
         for worker in self.cluster_workers:
             result += '%s\n' % self.cluster_workers[worker]
@@ -58,12 +60,18 @@ class GearmanServerStatus(object):
         self.host = host
         self.port = port
         self.workers = list()
+        self.errors = list()
        
     def update(self):
         """connects to and issues a stats command to gearmand"""
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((self.host, self.port))
-        fs = s.makefile('wb+')
+        fs = None
+        try:
+            s.connect((self.host, self.port))
+            fs = s.makefile('wb+')
+        except:
+            self.errors.append('failed to connect')
+            return
 
         # remove any previous run data
         del(self.workers[:])
@@ -78,8 +86,16 @@ class GearmanServerStatus(object):
 
             status = GearmanWorkerStatus(line, options)
 
-            if not options.workers or status.name in options.workers:  
+            # if not options.workers or status.name in options.workers:  
+            if not options.workers:
                 self.workers.append(status)
+            else:
+                for pattern in options.workers:
+                    result  = re.match(pattern, status.name)
+                    if result is not None and result.group:
+                        self.workers.append(status)
+                        # only match the first regex
+                        break
 
         fs.close()
         s.close()
@@ -88,6 +104,8 @@ class GearmanServerStatus(object):
         result = ''
         for worker in self.workers:
            result += '%s\n' % worker
+        if len(self.errors):
+            result += '%s\n' % str(self.errors)
         return result
 
 class GearmanWorkerStatus(object):
@@ -106,7 +124,7 @@ class GearmanWorkerStatus(object):
         result = re.match('^([a-z0-9A-Z_]+)\s+(\d+)\s+(\d+)\s+(\d+)', 
             status_line
         )
-        if (result.group):
+        if result.group:
             self.name = result.group(1)
             self.jobs_queued = int(result.group(2))
             self.jobs_running = int(result.group(3))
@@ -148,10 +166,33 @@ class GearmanClusterWorkerStatus(GearmanWorkerStatus):
             self.workers_running,
             self.name)
 
+#    home_dir = os.getenv('USERPROFILE') or os.getenv('HOME')
+#    if path.exists('/etc/gmstatus') and 
+
+def read_config(config_file):
+    config = {}
+    if path.exists(config_file) and path.isfile(config_file) and access(config_file, R_OK):
+        try:
+            FH = open(config_file)
+            for line in FH.readlines():
+                if '=' not in line:
+                    continue
+                (key, value) = line.strip().split('=');
+                if key not in config:
+                    config[key] = list()
+                config[key].append(value)
+            FH.close()
+        except IOError:
+            print 'failed to open: %s' % config_file
+        except:
+            pass
+
+    return config;
+
 if __name__ == '__main__':
     parser = optparse.OptionParser()
 
-    parser.add_option("-i", "--interval", metavar="NUMBER", type="int", 
+    parser.add_option("-i", "--interval", metavar="NUMBER", type="float", 
         help="workers to display, can give multiple options")
 
     parser.add_option("-w", "--workers", action='append', default=[],
@@ -162,13 +203,20 @@ if __name__ == '__main__':
 
     (options, args) = parser.parse_args()
 
-    # todo: servers = args or read from rc file
-    servers = args
-    workers = options.workers
-    if len(workers) == 0:
-        workers = None
+    config = read_config('/etc/gmstatus')
 
-    cluster = GearmanClusterStatus(servers, workers, options)
+    servers = args
+    
+    if not servers:
+        servers = config['server']
+
+    if len(options.workers) == 0:
+        if 'worker' in config:
+            options.workers = config['worker']
+        else:
+            options.workers = None
+
+    cluster = GearmanClusterStatus(servers, options.workers, options)
 
     while True:
         print cluster

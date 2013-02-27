@@ -2,7 +2,8 @@
 import gevent.monkey
 gevent.monkey.patch_all()
 
-from os import path, access, R_OK
+import os
+import io
 import curses
 import optparse
 import re
@@ -37,7 +38,6 @@ class GearmanClusterStatus(object):
                 self.cluster_workers[worker.name].jobs_queued += worker.jobs_queued
                 self.cluster_workers[worker.name].jobs_running += worker.jobs_running
                 self.cluster_workers[worker.name].workers_running += worker.workers_running
-                self.cluster_workers[worker.name].server_count += 1;
                 self.cluster_workers[worker.name].server_count += 1;
 
     def __repr__(self):
@@ -171,29 +171,35 @@ class GearmanClusterWorkerStatus(GearmanWorkerStatus):
 
 def read_config(config_file):
     config = {}
-    if path.exists(config_file) and path.isfile(config_file) and access(config_file, R_OK):
-        try:
-            FH = open(config_file)
-            for line in FH.readlines():
-                if '=' not in line:
-                    continue
-                (key, value) = line.strip().split('=');
-                if key not in config:
-                    config[key] = list()
-                config[key].append(value)
-            FH.close()
-        except IOError:
-            print 'failed to open: %s' % config_file
-        except:
-            pass
-
+    try:
+        FH = open(config_file)
+        for line in FH.readlines():
+            if '=' not in line:
+                continue
+            (key, value) = line.strip().split('=');
+            if key not in config:
+                config[key] = list()
+            config[key].append(value)
+        FH.close()
+    except IOError:
+        pass
     return config;
+
+def get_config(config_files):
+    for file in config_files:
+        if os.path.exists(file):
+            return read_config(file)
+
+
 
 if __name__ == '__main__':
     parser = optparse.OptionParser()
 
     parser.add_option("-i", "--interval", metavar="NUMBER", type="float", 
         help="workers to display, can give multiple options")
+
+    parser.add_option("-c", "--config", metavar="STRING", type="string", 
+        help="specify config file to use")
 
     parser.add_option("-w", "--workers", action='append', default=[],
         help="workers to display, can give multiple options")
@@ -203,12 +209,22 @@ if __name__ == '__main__':
 
     (options, args) = parser.parse_args()
 
-    config = read_config('/etc/gmstatus')
+    # default config file locations
+    config_files = ['.gmstatus', os.getenv('HOME') + '/.gmstatus', '/etc/gmstatus']
+    
+    if options.config:
+        config_files = [options.config]
+
+    config = get_config(config_files)
 
     servers = args
     
-    if not servers:
+    if not servers and config:
         servers = config['server']
+
+    if not servers:
+        # no config found default to localhost:4730
+        servers = ['localhost:4730']
 
     if len(options.workers) == 0:
         if 'worker' in config:

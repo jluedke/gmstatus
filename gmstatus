@@ -23,7 +23,7 @@ class GearmanClusterStatus(object):
             self.server_status[server] = GearmanServerStatus(host, int(port), options)
 
     def update(self):
-        """Refresh the collection of GearmanServerStatsu"""
+        """Refresh the collection of GearmanServerStatus"""
         self.cluster_workers.clear()
         threads = []
         for server, status in self.server_status.iteritems():
@@ -111,7 +111,7 @@ class GearmanServerStatus(object):
         return result
 
 class GearmanWorkerStatus(object):
-    """Status returned by gearmand"""
+    """A single worker status returned by gearmand"""
 
     def __init__(self, status_line, options=None):
         self.name = ''
@@ -133,7 +133,7 @@ class GearmanWorkerStatus(object):
             self.workers_running = int(result.group(4))
         else:
             raise GearmanWorkerStatusLineError(
-                "wtf bro bad status - '%s'" % status_line)
+                "bad status - '%s'" % status_line)
 
     def __repr__(self):
         return "\tq: %d\tr: %d\tw: %d\tworker: %s" % (
@@ -147,7 +147,7 @@ class GearmanWorkerStatusLineError(Exception):
     pass
 
 class GearmanClusterWorkerStatus(GearmanWorkerStatus):
-    """collection of workers running in the cluster"""
+    """workers running in the cluster"""
     def __init__(self, worker):
         self.name = worker
         self.jobs_queued = 0

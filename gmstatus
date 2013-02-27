@@ -23,6 +23,7 @@ class GearmanClusterStatus(object):
             self.server_status[server] = GearmanServerStatus(host, int(port), options)
 
     def update(self):
+        """Refresh the collection of GearmanServerStatsu"""
         self.cluster_workers.clear()
         threads = []
         for server, status in self.server_status.iteritems():
@@ -56,6 +57,7 @@ class GearmanClusterStatus(object):
         return result
         
 class GearmanServerStatus(object):
+    """collection of GearmanWorkerStatus objects"""
     def __init__(self, host, port=4730, options=None):
         self.host = host
         self.port = port
@@ -145,6 +147,7 @@ class GearmanWorkerStatusLineError(Exception):
     pass
 
 class GearmanClusterWorkerStatus(GearmanWorkerStatus):
+    """collection of workers running in the cluster"""
     def __init__(self, worker):
         self.name = worker
         self.jobs_queued = 0
@@ -153,6 +156,7 @@ class GearmanClusterWorkerStatus(GearmanWorkerStatus):
         self.server_count = 0 # number of servers job is running on
 
     def update(self, jobs_queued, jobs_running, workers_running):
+        """upate the counts for the worker"""
         self.jobs_queued += jobs_queued
         self.jobs_running += jobs_running
         self.workers_running += workers_running
@@ -170,6 +174,7 @@ class GearmanClusterWorkerStatus(GearmanWorkerStatus):
 #    if path.exists('/etc/gmstatus') and 
 
 def read_config(config_file):
+    """read a gmstatus config file and parse it"""
     config = {}
     try:
         FH = open(config_file)
@@ -186,11 +191,10 @@ def read_config(config_file):
     return config;
 
 def get_config(config_files):
+    """read config files until we find one"""
     for file in config_files:
         if os.path.exists(file):
             return read_config(file)
-
-
 
 if __name__ == '__main__':
     parser = optparse.OptionParser()

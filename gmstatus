@@ -9,6 +9,7 @@ import optparse
 import re
 import time
 import socket
+import curses
 
 class GearmanClusterStatus(object):
     """collection of GearmanServerStatus"""
@@ -237,10 +238,27 @@ if __name__ == '__main__':
             options.workers = None
 
     cluster = GearmanClusterStatus(servers, options.workers, options)
-
-    while True:
+    key = -1;
+    if not options.interval:
         print cluster
-        if options.interval:
-            time.sleep(options.interval)
-        if not options.interval:
-            break
+    else:
+        screen = curses.initscr()
+        screen.nodelay(1)
+        try:
+            while True:
+                output = str(cluster)
+                screen.erase()
+                screen.addstr(0, 0, output)
+                screen.refresh()
+                key = screen.getch()
+                if key == -1:
+                    time.sleep(options.interval)
+                elif key == 32:
+                    continue
+                else:
+                    break
+
+        finally:
+            curses.endwin();
+        print key
+

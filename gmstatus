@@ -10,6 +10,7 @@ import re
 import time
 import socket
 import curses
+import StringIO
 
 class GearmanClusterStatus(object):
     """collection of GearmanServerStatus"""
@@ -248,12 +249,26 @@ if __name__ == '__main__':
             while True:
                 output = str(cluster)
                 screen.erase()
-                screen.addstr(0, 0, output)
+                (height, width) = screen.getmaxyx()
+                size = (height*width)
+                cnt=0
+                for line in output.split('\n'):
+                   cnt += 1
+                   if cnt >= height:
+                       break
+                   screen.addstr(cnt, 0, line)
+
                 screen.refresh()
                 key = screen.getch()
                 if key == -1:
                     time.sleep(options.interval)
                 elif key == 32:
+                    continue
+                elif key == 100:
+                    if options.detailed == True:
+                        options.detailed = False;
+                    else:
+                        options.detailed = True;
                     continue
                 else:
                     break

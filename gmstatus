@@ -202,7 +202,7 @@ if __name__ == '__main__':
     parser = optparse.OptionParser()
 
     parser.add_option("-i", "--interval", metavar="NUMBER", type="float", 
-        help="workers to display, can give multiple options")
+        help="time to wait between refresh")
 
     parser.add_option("-c", "--config", metavar="STRING", type="string", 
         help="specify config file to use")

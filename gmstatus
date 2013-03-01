@@ -172,9 +172,6 @@ class GearmanClusterWorkerStatus(GearmanWorkerStatus):
             self.workers_running,
             self.name)
 
-#    home_dir = os.getenv('USERPROFILE') or os.getenv('HOME')
-#    if path.exists('/etc/gmstatus') and 
-
 def read_config(config_file):
     """read a gmstatus config file and parse it"""
     config = {}
@@ -250,13 +247,12 @@ if __name__ == '__main__':
                 output = str(cluster)
                 screen.erase()
                 (height, width) = screen.getmaxyx()
-                size = (height*width)
                 cnt=0
                 for line in output.split('\n'):
                    cnt += 1
                    if cnt >= height:
                        break
-                   screen.addstr(cnt, 0, line)
+                   screen.addnstr(cnt, 0, line, width)
 
                 screen.refresh()
                 key = screen.getch()
@@ -277,6 +273,5 @@ if __name__ == '__main__':
                     screen.refresh()
                 else:
                     print "KEY %s" % (key)
-
         finally:
             curses.endwin();

@@ -46,15 +46,15 @@ class GearmanClusterStatus(object):
     def __repr__(self):
         result = ''
         self.update()
+        for worker in self.cluster_workers:
+            result += '%s\n' % self.cluster_workers[worker]
+
         if options.detailed:
+            result += '-' * 72
+            result += "\n";
             for server in self.servers:
                 result += 'host: %s\tw: %s\n' % (server, len(self.server_status[server].workers))
                 result += str(self.server_status[server])
-            result += '-' * 72
-
-        result += "\n";
-        for worker in self.cluster_workers:
-            result += '%s\n' % self.cluster_workers[worker]
 
         return result
         
@@ -261,19 +261,22 @@ if __name__ == '__main__':
                 screen.refresh()
                 key = screen.getch()
                 if key == -1:
-                    time.sleep(options.interval)
-                elif key == 32:
+                    screen.timeout(int(options.interval*1000))
+                elif key == ord(' '):
                     continue
-                elif key == 100:
+                elif key == ord('d'):
                     if options.detailed == True:
                         options.detailed = False;
                     else:
                         options.detailed = True;
                     continue
-                else:
+                elif key == ord('q'):
                     break
+                elif key == ord('?') or key == ord('h'):
+                    screen.addstr(0, 0, "(d)etails (q)uit (h)elp (' ')refresh")
+                    screen.refresh()
+                else:
+                    print "KEY %s" % (key)
 
         finally:
             curses.endwin();
-        print key
-

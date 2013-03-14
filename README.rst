@@ -17,7 +17,7 @@ ABOUT
 
   server=<gearmanN>
   server=<gearmanN>
-  ..
+  ...
   worker=<worker_name_regex>
   worker=<worker_name_regex>
   ...

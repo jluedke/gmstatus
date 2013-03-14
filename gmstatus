@@ -2,15 +2,14 @@
 import gevent.monkey
 gevent.monkey.patch_all()
 
-import os
+import curses
 import io
-import curses
 import optparse
+import os
 import re
-import time
 import socket
-import curses
-import StringIO
+import sys
+import time
 
 class GearmanClusterStatus(object):
     """collection of GearmanServerStatus"""
@@ -23,6 +22,7 @@ class GearmanClusterStatus(object):
         for server in self.servers:
             host, port = (server.split(':') + [4730])[:2]
             self.server_status[server] = GearmanServerStatus(host, int(port), options)
+        self.update()
 
     def update(self):
         """Refresh the collection of GearmanServerStatus"""
@@ -45,7 +45,6 @@ class GearmanClusterStatus(object):
 
     def __repr__(self):
         result = ''
-        self.update()
         for worker in self.cluster_workers:
             result += '%s\n' % self.cluster_workers[worker]
 
@@ -69,6 +68,7 @@ class GearmanServerStatus(object):
     def update(self):
         """connects to and issues a stats command to gearmand"""
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        del self.errors[:]
         fs = None
         try:
             s.connect((self.host, self.port))
@@ -196,16 +196,18 @@ def get_config(config_files):
             return read_config(file)
 
 if __name__ == '__main__':
-    parser = optparse.OptionParser()
+
+    usage = "usage: %prog [options] <server1> <server2>..."
+    parser = optparse.OptionParser(usage=usage)
 
     parser.add_option("-i", "--interval", metavar="NUMBER", type="float", 
         help="time to wait between refresh")
 
     parser.add_option("-c", "--config", metavar="STRING", type="string", 
-        help="specify config file to use")
+        help="specify config file to use, by default it will try .gmstatus ~/.gmstats /etc/gmstatus")
 
     parser.add_option("-w", "--workers", action='append', default=[],
-        help="workers to display, can give multiple options")
+        help="display workers matched by regex. You can give multiple -w options, default is '.*'")
 
     parser.add_option("-d", "--detailed", action="store_true", default=False,
         help="display detailed results for each server")
@@ -238,14 +240,14 @@ if __name__ == '__main__':
     cluster = GearmanClusterStatus(servers, options.workers, options)
     key = -1;
     if not options.interval:
-        print cluster
+        sys.stdout.write(str(cluster))
     else:
         screen = curses.initscr()
         screen.nodelay(1)
         try:
             while True:
-                output = str(cluster)
                 screen.erase()
+                output = str(cluster)
                 (height, width) = screen.getmaxyx()
                 cnt=0
                 for line in output.split('\n'):
@@ -256,9 +258,7 @@ if __name__ == '__main__':
 
                 screen.refresh()
                 key = screen.getch()
-                if key == -1:
-                    screen.timeout(int(options.interval*1000))
-                elif key == ord(' '):
+                if key == ord(' '):
                     continue
                 elif key == ord('d'):
                     if options.detailed == True:
@@ -271,7 +271,9 @@ if __name__ == '__main__':
                 elif key == ord('?') or key == ord('h'):
                     screen.addstr(0, 0, "(d)etails (q)uit (h)elp (' ')refresh")
                     screen.refresh()
-                else:
-                    print "KEY %s" % (key)
+
+                screen.timeout(int(options.interval*1000))
+                # update the cluster status again
+                cluster.update()
         finally:
             curses.endwin();

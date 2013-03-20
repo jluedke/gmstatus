@@ -10,6 +10,7 @@ import re
 import socket
 import sys
 import time
+################################################################################
 
 class GearmanClusterStatus(object):
     """collection of GearmanServerStatus"""
@@ -21,7 +22,8 @@ class GearmanClusterStatus(object):
         self.server_status = {}
         for server in self.servers:
             host, port = (server.split(':') + [4730])[:2]
-            self.server_status[server] = GearmanServerStatus(host, int(port), options)
+            self.server_status[server] = GearmanServerStatus(
+                host, int(port), options)
         self.update()
 
     def update(self):
@@ -35,12 +37,16 @@ class GearmanClusterStatus(object):
         for server,status in self.server_status.iteritems():
             for worker in status.workers:
                 if worker.name not in self.cluster_workers:
-                    self.cluster_workers[worker.name] = GearmanClusterWorkerStatus(worker.name)
+                    self.cluster_workers[worker.name] = \
+                        GearmanClusterWorkerStatus(worker.name)
 
                 # summ up the workers
-                self.cluster_workers[worker.name].jobs_queued += worker.jobs_queued
-                self.cluster_workers[worker.name].jobs_running += worker.jobs_running
-                self.cluster_workers[worker.name].workers_running += worker.workers_running
+                self.cluster_workers[worker.name].jobs_queued += \
+                    worker.jobs_queued
+                self.cluster_workers[worker.name].jobs_running += \
+                    worker.jobs_running
+                self.cluster_workers[worker.name].workers_running += \
+                    worker.workers_running
                 self.cluster_workers[worker.name].server_count += 1;
 
     def __str__(self):
@@ -52,7 +58,8 @@ class GearmanClusterStatus(object):
             result += '-' * 72
             result += "\n";
             for server in self.servers:
-                result += 'host: %s\tw: %s\n' % (server, len(self.server_status[server].workers))
+                result += 'host: %s\tw: %s\n' % (
+                    server, len(self.server_status[server].workers))
                 result += str(self.server_status[server])
 
         return result

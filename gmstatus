@@ -13,7 +13,7 @@ import time
 
 class GearmanClusterStatus(object):
     """collection of GearmanServerStatus"""
-    def __init__(self, servers, workers=None, options=None):
+    def __init__(self, servers, workers=None, options=dict()):
         self.servers = servers
         self.workers = workers # workers to watch
         self.cluster_workers = {}
@@ -43,12 +43,12 @@ class GearmanClusterStatus(object):
                 self.cluster_workers[worker.name].workers_running += worker.workers_running
                 self.cluster_workers[worker.name].server_count += 1;
 
-    def __repr__(self):
+    def __str__(self):
         result = ''
         for worker in self.cluster_workers:
             result += '%s\n' % self.cluster_workers[worker]
 
-        if options.detailed:
+        if self.options.detailed:
             result += '-' * 72
             result += "\n";
             for server in self.servers:
@@ -59,11 +59,12 @@ class GearmanClusterStatus(object):
         
 class GearmanServerStatus(object):
     """collection of GearmanWorkerStatus objects"""
-    def __init__(self, host, port=4730, options=None):
+    def __init__(self, host, port=4730, options=dict()):
         self.host = host
         self.port = port
         self.workers = list()
         self.errors = list()
+        self.options = options
        
     def update(self):
         """connects to and issues a stats command to gearmand"""
@@ -88,13 +89,13 @@ class GearmanServerStatus(object):
             if line == '.\n':
                 break
 
-            status = GearmanWorkerStatus(line, options)
+            status = GearmanWorkerStatus(line, self.options)
 
             # if not options.workers or status.name in options.workers:  
-            if not options.workers:
+            if not self.options:
                 self.workers.append(status)
             else:
-                for pattern in options.workers:
+                for pattern in self.options.workers:
                     result  = re.match(pattern, status.name)
                     if result is not None and result.group:
                         self.workers.append(status)
@@ -104,7 +105,7 @@ class GearmanServerStatus(object):
         fs.close()
         s.close()
 
-    def __repr__(self):
+    def __str__(self):
         result = ''
         for worker in self.workers:
            result += '%s\n' % worker
@@ -115,7 +116,7 @@ class GearmanServerStatus(object):
 class GearmanWorkerStatus(object):
     """A single worker status returned by gearmand"""
 
-    def __init__(self, status_line, options=None):
+    def __init__(self, status_line, options=dict()):
         self.name = ''
         self.workers_running = 0
         self.jobs_queued = 0
@@ -137,7 +138,7 @@ class GearmanWorkerStatus(object):
             raise GearmanWorkerStatusLineError(
                 "bad status - '%s'" % status_line)
 
-    def __repr__(self):
+    def __str__(self):
         return "\tq: %d\tr: %d\tw: %d\tworker: %s" % (
             self.jobs_queued, 
             self.jobs_running, 
@@ -164,7 +165,7 @@ class GearmanClusterWorkerStatus(GearmanWorkerStatus):
         self.workers_running += workers_running
         self.server_count += 1
 
-    def __repr__(self):
+    def __str__(self):
         return "s: %d\tq: %d\tr: %d\tw: %d\tworker: %s" % (
             self.server_count, 
             self.jobs_queued, 

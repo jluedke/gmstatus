@@ -73,6 +73,10 @@ class GearmanServerStatus(object):
         self.workers = list()
         self.errors = list()
         self.options = options
+
+        # no worker option passed in so show all workers
+        if not self.options.workers:
+            self.options.workers = ['.*']
        
     def update(self):
         """connects to and issues a stats command to gearmand"""

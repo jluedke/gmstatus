@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 import gevent.monkey
 gevent.monkey.patch_all()
 
@@ -203,8 +204,7 @@ def get_config(config_files):
         if os.path.exists(file):
             return read_config(file)
 
-if __name__ == '__main__':
-
+def main():
     usage = "usage: %prog [options] <server1> <server2>..."
     parser = optparse.OptionParser(usage=usage)
 
@@ -221,7 +221,7 @@ if __name__ == '__main__':
         help="display detailed results for each server")
 
     (options, args) = parser.parse_args()
-
+    
     # default config file locations
     config_files = ['.gmstatus', os.getenv('HOME') + '/.gmstatus', '/etc/gmstatus']
     
@@ -254,7 +254,6 @@ if __name__ == '__main__':
         screen.nodelay(1)
         try:
             while True:
-                screen.erase()
                 output = str(cluster)
                 (height, width) = screen.getmaxyx()
                 cnt=0
@@ -264,8 +263,12 @@ if __name__ == '__main__':
                        break
                    screen.addnstr(cnt, 0, line, width)
 
-                screen.refresh()
                 key = screen.getch()
+                # set our timeout
+                screen.timeout(int(options.interval*1000))
+                # clear the screen
+                screen.erase()
+
                 if key == ord(' '):
                     continue
                 elif key == ord('d'):
@@ -278,10 +281,19 @@ if __name__ == '__main__':
                     break
                 elif key == ord('?') or key == ord('h'):
                     screen.addstr(0, 0, "(d)etails (q)uit (h)elp (' ')refresh")
-                    screen.refresh()
+                    # block so the user can read the help screen
+                    screen.timeout(-1)
+                    continue
 
-                screen.timeout(int(options.interval*1000))
                 # update the cluster status again
                 cluster.update()
         finally:
             curses.endwin();
+
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        sys.exit(0)
+
+

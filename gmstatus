@@ -80,12 +80,12 @@ class GearmanServerStatus(object):
        
     def update(self):
         """connects to and issues a stats command to gearmand"""
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         del self.errors[:]
         fs = None
         try:
-            s.connect((self.host, self.port))
-            fs = s.makefile('wb+')
+            sock.connect((self.host, self.port))
+            fs = sock.makefile('wb+')
         except:
             self.errors.append('failed to connect')
             return
@@ -115,7 +115,7 @@ class GearmanServerStatus(object):
                         break
 
         fs.close()
-        s.close()
+        sock.close()
 
     def __str__(self):
         result = ''

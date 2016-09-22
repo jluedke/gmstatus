@@ -244,7 +244,7 @@ def main():
         servers = ['localhost:4730']
 
     if len(options.workers) == 0:
-        if 'worker' in config:
+        if config and 'worker' in config:
             options.workers = config['worker']
         else:
             options.workers = None

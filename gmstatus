@@ -77,45 +77,37 @@ class GearmanServerStatus(object):
         # no worker option passed in so show all workers
         if not self.options.workers:
             self.options.workers = ['.*']
-       
+
     def update(self):
-        """connects to and issues a stats command to gearmand"""
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        """Connects to and issues a stats command to gearmand"""
         del self.errors[:]
-        fs = None
+
         try:
-            sock.connect((self.host, self.port))
-            fs = sock.makefile('wb+')
-        except:
-            self.errors.append('failed to connect')
-            return
+            with socket.create_connection((self.host, self.port)) as sock:
+                # Make file-like object for reading/writing
+                with sock.makefile('rwb') as fs:
+                    # remove any previous run data
+                    del self.workers[:]
 
-        # remove any previous run data
-        del(self.workers[:])
+                    while True:
+                        fs.write(b'status\n')
+                        fs.flush()
 
-        while True:
-            fs.write('status\n');
-            fs.flush()
+                        line = fs.readline().decode()
+                        if line == '.\n':
+                            break
 
-            line = fs.readline()
-            if line == '.\n':
-                break
+                        status = GearmanWorkerStatus(line, self.options)
 
-            status = GearmanWorkerStatus(line, self.options)
-
-            # if not options.workers or status.name in options.workers:  
-            if not self.options:
-                self.workers.append(status)
-            else:
-                for pattern in self.options.workers:
-                    result  = re.match(pattern, status.name)
-                    if result is not None and result.group:
-                        self.workers.append(status)
-                        # only match the first regex
-                        break
-
-        fs.close()
-        sock.close()
+                        if not self.options:
+                            self.workers.append(status)
+                        else:
+                            for pattern in self.options.workers:
+                                if re.match(pattern, status.name):
+                                    self.workers.append(status)
+                                    break  # only match the first regex
+        except Exception as e:
+            self.errors.append(f'failed to connect: {e}')
 
     def __str__(self):
         result = ''

@@ -31,7 +31,7 @@ ABOUT
 
 INSTALLATION
 
-    python setup.py install
+    pip install gmstatus
 
 DOCUMENTATION
 

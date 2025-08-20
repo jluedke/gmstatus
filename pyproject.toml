@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gmstatus"
+version = "0.1"
+description = "A top like interface for a gearman cluster"
+readme = "README.rst"
+requires-python = ">=3.6"
+license = {text = "GPL-2.0-only"}
+authors = [
+    {name = "James M. Luedke", email = "contact@jluedke.com"}
+]
+maintainers = [
+    {name = "James M. Luedke", email = "contact@jluedke.com"}
+]
+keywords = ["gearman", "monitoring", "cluster", "status"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: System Administrators",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: System :: Monitoring",
+    "Topic :: System :: Systems Administration",
+]
+dependencies = [
+    "gevent",
+]
+urls = {Homepage = "http://jluedke.com/gmstatus"}
+
+[tool.setuptools]
+script-files = ["gmstatus"]

@@ -43,10 +43,8 @@ AUTHOR
 
 COPYRIGHT
 
-  gmstatus is licensed under the GNU General Public License version
-  2. For the full license information, please visit
-
-  http://www.gnu.org/copyleft/gpl.html
+  gmstatus is licensed under the MIT License.
+  For the full license information, please see the LICENSE file.
 
 NOTE
   IN DEVELOPMENT

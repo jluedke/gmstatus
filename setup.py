@@ -1,10 +1,6 @@
 # setup.py
 from distutils.core import setup
 
-setup(name = "gmstatus",
-    version = '0.1',
-    scripts = ['gmstatus'],
-    requires=[
-        'curses',
-        'gevent']
+setup(
+    name="gmstatus", version="0.1", scripts=["gmstatus"], requires=["curses", "gevent"]
 )

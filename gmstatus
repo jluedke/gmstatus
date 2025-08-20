@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import gevent.monkey
+
 gevent.monkey.patch_all()
 
 import curses
@@ -11,20 +12,22 @@ import re
 import socket
 import sys
 import time
+
 ################################################################################
+
 
 class GearmanClusterStatus(object):
     """collection of GearmanServerStatus"""
+
     def __init__(self, servers, workers=None, options=dict()):
         self.servers = servers
-        self.workers = workers # workers to watch
+        self.workers = workers  # workers to watch
         self.cluster_workers = {}
         self.options = options
         self.server_status = {}
         for server in self.servers:
-            host, port = (server.split(':') + [4730])[:2]
-            self.server_status[server] = GearmanServerStatus(
-                host, int(port), options)
+            host, port = (server.split(":") + [4730])[:2]
+            self.server_status[server] = GearmanServerStatus(host, int(port), options)
         self.update()
 
     def update(self):
@@ -35,38 +38,42 @@ class GearmanClusterStatus(object):
             threads.append(gevent.spawn(status.update))
         gevent.joinall(threads)
 
-        for server,status in self.server_status.iteritems():
+        for server, status in self.server_status.iteritems():
             for worker in status.workers:
                 if worker.name not in self.cluster_workers:
-                    self.cluster_workers[worker.name] = \
-                        GearmanClusterWorkerStatus(worker.name)
+                    self.cluster_workers[worker.name] = GearmanClusterWorkerStatus(
+                        worker.name
+                    )
 
                 # summ up the workers
-                self.cluster_workers[worker.name].jobs_queued += \
-                    worker.jobs_queued
-                self.cluster_workers[worker.name].jobs_running += \
-                    worker.jobs_running
-                self.cluster_workers[worker.name].workers_running += \
-                    worker.workers_running
-                self.cluster_workers[worker.name].server_count += 1;
+                self.cluster_workers[worker.name].jobs_queued += worker.jobs_queued
+                self.cluster_workers[worker.name].jobs_running += worker.jobs_running
+                self.cluster_workers[
+                    worker.name
+                ].workers_running += worker.workers_running
+                self.cluster_workers[worker.name].server_count += 1
 
     def __str__(self):
-        result = ''
+        result = ""
         for worker in self.cluster_workers:
-            result += '%s\n' % self.cluster_workers[worker]
+            result += "%s\n" % self.cluster_workers[worker]
 
         if self.options.detailed:
-            result += '-' * 72
-            result += "\n";
+            result += "-" * 72
+            result += "\n"
             for server in self.servers:
-                result += 'host: %s\tw: %s\n' % (
-                    server, len(self.server_status[server].workers))
+                result += "host: %s\tw: %s\n" % (
+                    server,
+                    len(self.server_status[server].workers),
+                )
                 result += str(self.server_status[server])
 
         return result
-        
+
+
 class GearmanServerStatus(object):
     """collection of GearmanWorkerStatus objects"""
+
     def __init__(self, host, port=4730, options=dict()):
         self.host = host
         self.port = port
@@ -76,7 +83,7 @@ class GearmanServerStatus(object):
 
         # no worker option passed in so show all workers
         if not self.options.workers:
-            self.options.workers = ['.*']
+            self.options.workers = [".*"]
 
     def update(self):
         """Connects to and issues a stats command to gearmand"""
@@ -85,16 +92,16 @@ class GearmanServerStatus(object):
         try:
             with socket.create_connection((self.host, self.port)) as sock:
                 # Make file-like object for reading/writing
-                with sock.makefile('rwb') as fs:
+                with sock.makefile("rwb") as fs:
                     # remove any previous run data
                     del self.workers[:]
 
                     while True:
-                        fs.write(b'status\n')
+                        fs.write(b"status\n")
                         fs.flush()
 
                         line = fs.readline().decode()
-                        if line == '.\n':
+                        if line == ".\n":
                             break
 
                         status = GearmanWorkerStatus(line, self.options)
@@ -107,21 +114,22 @@ class GearmanServerStatus(object):
                                     self.workers.append(status)
                                     break  # only match the first regex
         except Exception as e:
-            self.errors.append(f'failed to connect: {e}')
+            self.errors.append(f"failed to connect: {e}")
 
     def __str__(self):
-        result = ''
+        result = ""
         for worker in self.workers:
-           result += '%s\n' % worker
+            result += "%s\n" % worker
         if len(self.errors):
-            result += '%s\n' % str(self.errors)
+            result += "%s\n" % str(self.errors)
         return result
+
 
 class GearmanWorkerStatus(object):
     """A single worker status returned by gearmand"""
 
     def __init__(self, status_line, options=dict()):
-        self.name = ''
+        self.name = ""
         self.workers_running = 0
         self.jobs_queued = 0
         self.jobs_running = 0
@@ -130,37 +138,37 @@ class GearmanWorkerStatus(object):
     def process_status_line(self, status_line):
         """parse gearman status line"""
 
-        result = re.match('^([a-z0-9A-Z_]+)\s+(\d+)\s+(\d+)\s+(\d+)', 
-            status_line
-        )
+        result = re.match("^([a-z0-9A-Z_]+)\s+(\d+)\s+(\d+)\s+(\d+)", status_line)
         if result.group:
             self.name = result.group(1)
             self.jobs_queued = int(result.group(2))
             self.jobs_running = int(result.group(3))
             self.workers_running = int(result.group(4))
         else:
-            raise GearmanWorkerStatusLineError(
-                "bad status - '%s'" % status_line)
+            raise GearmanWorkerStatusLineError("bad status - '%s'" % status_line)
 
     def __str__(self):
         return "\tq: %d\tr: %d\tw: %d\tworker: %s" % (
-            self.jobs_queued, 
-            self.jobs_running, 
+            self.jobs_queued,
+            self.jobs_running,
             self.workers_running,
-            self.name 
+            self.name,
         )
+
 
 class GearmanWorkerStatusLineError(Exception):
     pass
 
+
 class GearmanClusterWorkerStatus(GearmanWorkerStatus):
     """workers running in the cluster"""
+
     def __init__(self, worker):
         self.name = worker
         self.jobs_queued = 0
         self.jobs_running = 0
         self.workers_running = 0
-        self.server_count = 0 # number of servers job is running on
+        self.server_count = 0  # number of servers job is running on
 
     def update(self, jobs_queued, jobs_running, workers_running):
         """upate the counts for the worker"""
@@ -171,11 +179,13 @@ class GearmanClusterWorkerStatus(GearmanWorkerStatus):
 
     def __str__(self):
         return "s: %d\tq: %d\tr: %d\tw: %d\tworker: %s" % (
-            self.server_count, 
-            self.jobs_queued, 
-            self.jobs_running, 
+            self.server_count,
+            self.jobs_queued,
+            self.jobs_running,
             self.workers_running,
-            self.name)
+            self.name,
+        )
+
 
 def read_config(config_file):
     """read a gmstatus config file and parse it"""
@@ -183,16 +193,17 @@ def read_config(config_file):
     try:
         FH = open(config_file)
         for line in FH.readlines():
-            if '=' not in line:
+            if "=" not in line:
                 continue
-            (key, value) = line.strip().split('=');
+            (key, value) = line.strip().split("=")
             if key not in config:
                 config[key] = list()
             config[key].append(value)
         FH.close()
     except IOError:
         pass
-    return config;
+    return config
+
 
 def get_config(config_files):
     """read config files until we find one"""
@@ -200,49 +211,70 @@ def get_config(config_files):
         if os.path.exists(file):
             return read_config(file)
 
+
 def main():
     usage = "usage: %prog [options] <server1> <server2>..."
     parser = optparse.OptionParser(usage=usage)
 
-    parser.add_option("-i", "--interval", metavar="NUMBER", type="float", 
-        help="time to wait between refresh")
+    parser.add_option(
+        "-i",
+        "--interval",
+        metavar="NUMBER",
+        type="float",
+        help="time to wait between refresh",
+    )
 
-    parser.add_option("-c", "--config", metavar="STRING", type="string", 
-        help="specify config file to use, by default it will try .gmstatus ~/.gmstats /etc/gmstatus")
+    parser.add_option(
+        "-c",
+        "--config",
+        metavar="STRING",
+        type="string",
+        help="specify config file to use, by default it will try .gmstatus ~/.gmstats /etc/gmstatus",
+    )
 
-    parser.add_option("-w", "--workers", action='append', default=[],
-        help="display workers matched by regex. You can give multiple -w options, default is '.*'")
+    parser.add_option(
+        "-w",
+        "--workers",
+        action="append",
+        default=[],
+        help="display workers matched by regex. You can give multiple -w options, default is '.*'",
+    )
 
-    parser.add_option("-d", "--detailed", action="store_true", default=False,
-        help="display detailed results for each server")
+    parser.add_option(
+        "-d",
+        "--detailed",
+        action="store_true",
+        default=False,
+        help="display detailed results for each server",
+    )
 
     (options, args) = parser.parse_args()
-    
+
     # default config file locations
-    config_files = ['.gmstatus', os.getenv('HOME') + '/.gmstatus', '/etc/gmstatus']
-    
+    config_files = [".gmstatus", os.getenv("HOME") + "/.gmstatus", "/etc/gmstatus"]
+
     if options.config:
         config_files = [options.config]
 
     config = get_config(config_files)
 
     servers = args
-    
+
     if not servers and config:
-        servers = config['server']
+        servers = config["server"]
 
     if not servers:
         # no config found default to localhost:4730
-        servers = ['localhost:4730']
+        servers = ["localhost:4730"]
 
     if len(options.workers) == 0:
-        if config and 'worker' in config:
-            options.workers = config['worker']
+        if config and "worker" in config:
+            options.workers = config["worker"]
         else:
             options.workers = None
 
     cluster = GearmanClusterStatus(servers, options.workers, options)
-    key = -1;
+    key = -1
     if not options.interval:
         sys.stdout.write(str(cluster))
     else:
@@ -252,30 +284,30 @@ def main():
             while True:
                 output = str(cluster)
                 (height, width) = screen.getmaxyx()
-                cnt=0
-                for line in output.split('\n'):
-                   cnt += 1
-                   if cnt >= height:
-                       break
-                   screen.addnstr(cnt, 0, line, width)
+                cnt = 0
+                for line in output.split("\n"):
+                    cnt += 1
+                    if cnt >= height:
+                        break
+                    screen.addnstr(cnt, 0, line, width)
 
                 key = screen.getch()
                 # set our timeout
-                screen.timeout(int(options.interval*1000))
+                screen.timeout(int(options.interval * 1000))
                 # clear the screen
                 screen.erase()
 
-                if key == ord(' '):
+                if key == ord(" "):
                     continue
-                elif key == ord('d'):
+                elif key == ord("d"):
                     if options.detailed == True:
-                        options.detailed = False;
+                        options.detailed = False
                     else:
-                        options.detailed = True;
+                        options.detailed = True
                     continue
-                elif key == ord('q'):
+                elif key == ord("q"):
                     break
-                elif key == ord('?') or key == ord('h'):
+                elif key == ord("?") or key == ord("h"):
                     screen.addstr(0, 0, "(d)etails (q)uit (h)elp (' ')refresh")
                     # block so the user can read the help screen
                     screen.timeout(-1)
@@ -284,12 +316,11 @@ def main():
                 # update the cluster status again
                 cluster.update()
         finally:
-            curses.endwin();
+            curses.endwin()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
         sys.exit(0)
-
-

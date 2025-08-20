@@ -7,7 +7,7 @@ name = "gmstatus"
 version = "0.1"
 description = "A top like interface for a gearman cluster"
 readme = "README.rst"
-requires-python = ">=3.6"
+requires-python = ">=3.9"
 license = {text = "GPL-2.0-only"}
 authors = [
     {name = "James M. Luedke", email = "contact@jluedke.com"}
@@ -38,5 +38,33 @@ dependencies = [
 ]
 urls = {Homepage = "http://jluedke.com/gmstatus"}
 
+[project.optional-dependencies]
+dev = [
+    "black",
+    "flake8",
+    "isort",
+    "pre-commit",
+]
+
 [tool.setuptools]
 script-files = ["gmstatus"]
+
+[tool.black]
+line-length = 88
+target-version = ["py39"]
+
+[tool.flake8]
+max-line-length = 88
+# Keep Black and Flake8 happy together:
+extend-ignore = [
+  "E203",  # space before : (conflicts with Black)
+  "W503",  # line break before binary operator (Black style prefers)
+]
+per-file-ignores = [
+  "gmstatus:E402",  # gevent monkeypatch needs to happen before imports
+]
+
+[tool.isort]
+profile = "black"
+line_length = 88
+

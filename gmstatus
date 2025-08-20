@@ -1,17 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import gevent.monkey
+import gevent.monkey  # isort: skip  # noqa: F401
 
-gevent.monkey.patch_all()
+gevent.monkey.patch_all()  # noqa: E402
 
 import curses
-import io
 import optparse
 import os
 import re
 import socket
 import sys
-import time
 
 ################################################################################
 
@@ -95,7 +93,6 @@ class GearmanServerStatus(object):
                 with sock.makefile("rwb") as fs:
                     # remove any previous run data
                     del self.workers[:]
-
                     while True:
                         fs.write(b"status\n")
                         fs.flush()
@@ -138,7 +135,7 @@ class GearmanWorkerStatus(object):
     def process_status_line(self, status_line):
         """parse gearman status line"""
 
-        result = re.match("^([a-z0-9A-Z_]+)\s+(\d+)\s+(\d+)\s+(\d+)", status_line)
+        result = re.match(r"^([a-z0-9A-Z_]+)\s+(\d+)\s+(\d+)\s+(\d+)", status_line)
         if result.group:
             self.name = result.group(1)
             self.jobs_queued = int(result.group(2))
@@ -229,7 +226,8 @@ def main():
         "--config",
         metavar="STRING",
         type="string",
-        help="specify config file to use, by default it will try .gmstatus ~/.gmstats /etc/gmstatus",
+        help="specify config file to use, by default it will try .gmstatus ~/.gmstats "
+        "/etc/gmstatus",
     )
 
     parser.add_option(
@@ -237,7 +235,8 @@ def main():
         "--workers",
         action="append",
         default=[],
-        help="display workers matched by regex. You can give multiple -w options, default is '.*'",
+        help="display workers matched by regex. You can give multiple -w options, "
+        "default is '.*'",
     )
 
     parser.add_option(
@@ -300,7 +299,7 @@ def main():
                 if key == ord(" "):
                     continue
                 elif key == ord("d"):
-                    if options.detailed == True:
+                    if options.detailed:
                         options.detailed = False
                     else:
                         options.detailed = True
